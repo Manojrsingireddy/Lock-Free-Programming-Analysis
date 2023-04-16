@@ -64,7 +64,3 @@ void Stack::push(int val){
             break;
     }
 }
-
-void run_stack_tests(){
-
-}

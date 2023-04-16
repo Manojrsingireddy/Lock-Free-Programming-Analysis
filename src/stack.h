@@ -1,5 +1,6 @@
 #include <pthread.h>
 #include <atomic>
+#include <iostream>
 
 #define BAD_VAL -1
 
@@ -35,5 +36,3 @@ class Stack{
     int pop();
 };
 
-
-void run_stack_tests();
