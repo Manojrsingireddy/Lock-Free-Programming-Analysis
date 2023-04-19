@@ -9,7 +9,6 @@ using namespace std;
 enum stacktype{
     lock_free,
     lock_based,
-    single_threaded
 };
 
 template <typename T>
@@ -25,13 +24,14 @@ struct Node_struct{
 typedef struct Node_struct<int> Node;
 
 
-class Stack{
+class myStack{
     private:
-    atomic<Node *> head;
+    atomic<Node *> atom_head;
+    Node * head;
     stacktype type;
     pthread_mutex_t lock;
     public:
-    Stack(stacktype s): head(nullptr), type(s){}
+    myStack(stacktype s): head(nullptr), type(s){}
     void push(int val);
     int pop();
 };
