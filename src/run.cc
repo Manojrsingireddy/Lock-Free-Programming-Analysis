@@ -57,7 +57,7 @@ long long performAStackTest(double readWriteRatio, int num_threads, int num_ops,
         pthread_join(threads[i], nullptr);
     }
     std::__1::chrono::steady_clock::time_point end = std::chrono::high_resolution_clock::now();
-    return std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
 }
 
 
@@ -67,26 +67,14 @@ void performStackTests(double readWriteRatio, int num_threads, int num_ops){
     long long lf_time = performAStackTest(readWriteRatio, num_threads, num_ops, lock_free);
 
     // Summary statictics
-    std::cout << "Lock based stack time: " << lb_time << " milliseconds" << std::endl;
-    std::cout << "Lock free stack time: " << lf_time << " milliseconds" << std::endl;
+    std::cout << "Lock based stack time: " << lb_time << " nanoseconds" << std::endl;
+    std::cout << "Lock free stack time: " << lf_time << " nanoseconds" << std::endl;
     std::cout << "Speedup: " << ((double)lb_time / (double)lf_time) << std::endl;
-
-}
-
-long long performAHashTest(double readWriteRatio, int num_threads, int num_ops){
 
 }
 
 void performHashTests(double readWriteRatio, int num_threads, int num_ops) {
     std::cout << "Performing hash tests..." << std::endl;
-    cout << "Performing stack tests..." << std::endl;
-    long long lb_time = performAStackTest(readWriteRatio, num_threads, num_ops, lock_based);
-    long long lf_time = performAStackTest(readWriteRatio, num_threads, num_ops, lock_free);
-
-    // Summary statictics
-    std::cout << "Lock based stack time: " << lb_time << " milliseconds" << std::endl;
-    std::cout << "Lock free stack time: " << lf_time << " milliseconds" << std::endl;
-    std::cout << "Speedup: " << ((double)lb_time / (double)lf_time) << std::endl;
 }
 
 void performBSTTests(double readWriteRatio, int num_threads, int num_ops) {
@@ -127,6 +115,13 @@ int main(int argc, char *argv[]) {
                 return 1;
         }
     }
+    // print argument values
+    // cout << "do_stack_tests: " << do_stack_tests << endl;
+    // cout << "do_hash_tests: " << do_hash_tests << endl;
+    // cout << "do_bst_tests: " << do_bst_tests << endl;
+    // cout << "readWriteRatio: " << readWriteRatio << endl;
+    // cout << "num_threads: " << num_threads << endl;
+    // cout << "num_ops: " << num_ops << endl;
 
     if (readWriteRatio < 0 || readWriteRatio > 1) {
         std::cerr << "Error: -r option with read/write ratio is required and must be in [0,1]." << std::endl;
