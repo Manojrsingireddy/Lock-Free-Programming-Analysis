@@ -1,6 +1,9 @@
 #include <pthread.h>
 #include <atomic>
 #include <iostream>
+#include <random>
+#include <vector>
+#include <chrono>
 
 #define BAD_VAL -1
 
@@ -36,3 +39,4 @@ class myStack{
     int pop();
 };
 
+void performStackTests(double readWriteRatio, int num_threads, int num_ops);

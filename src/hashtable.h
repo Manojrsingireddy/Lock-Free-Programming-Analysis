@@ -1,23 +1,15 @@
 #include <pthread.h>
 #include <atomic>
 #include <iostream>
+#include <random>
+#include <vector>
+#include <chrono>
+#include <list>
 
 
 using namespace std;
 
 // linear probing based hash table
-
-class single_threaded_hash_table{
-    public:
-        single_threaded_hash_table(int s);
-        ~single_threaded_hash_table();
-        void insert(int key, int value);
-        int get(int key);
-        void remove(int key);
-    private:
-        int size;
-        vector< pair<int, int> > table;
-};
 
 class lock_based_hash_table{
     public:
@@ -28,13 +20,15 @@ class lock_based_hash_table{
         void remove(int key);
     private:
         int size;
-        vector< pair<int, int> > table;
+        vector< list< pair<int, int> > > table;
         pthread_mutex_t lock;
 };
 
 struct htEntry_struct{
-    atomic<int> key;
-    atomic<int> value;
+    int key;
+    int value;
+    atomic<htEntry_struct*> next;
+    htEntry_struct(int k, int v): key(k), value(v), next(nullptr){};
 };
 
 typedef struct htEntry_struct htEntry;
@@ -44,10 +38,12 @@ class lock_free_hash_table{
     public:
         lock_free_hash_table(int s);
         ~lock_free_hash_table();
-        void set(int key, int value);
+        void insert(int key, int value);
         int get(int key);
         void remove(int key);
     private:
-        int size;
-        htEntry * ht_entries;
+        size_t size;
+        vector<atomic<htEntry*> > table;
 };
+
+void performHashTests(double readWriteRatio, int num_threads, int num_ops);

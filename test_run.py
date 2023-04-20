@@ -1,6 +1,7 @@
 import subprocess
 import re
 import csv
+import os
 
 def run_test(test_type, r, n, o):
     results = []
@@ -16,9 +17,11 @@ def run_test(test_type, r, n, o):
     return sum(results) / len(results)
 
 # test_types = ['-s', '-t', '-h']
-test_types = ['-s']
+test_types = ['-s', '-h']
 read_write_ratios = [0.25, 0.5, 0.75]
 
+os.system('make clean')
+os.system('make')
 with open('results.csv', 'w', newline='') as csvfile:
     fieldnames = ['test_type', 'r', 'n', 'o', 'average']
     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
