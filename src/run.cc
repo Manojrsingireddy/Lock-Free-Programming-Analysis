@@ -3,15 +3,11 @@
 #include <cstdlib>
 #include "stack.h"
 #include "hashtable.h"
-// #include "BST.h"
+#include "BST.h"
 
 #define SEED 88884444
 
 using namespace std;
-
-void performBSTTests(double readWriteRatio, int num_threads, int num_ops) {
-    std::cout << "Performing BST tests..." << std::endl;
-}
 
 int main(int argc, char *argv[]) {
     int opt;
@@ -22,7 +18,7 @@ int main(int argc, char *argv[]) {
     int num_threads = -1;
     int num_ops = -1;
 
-    while ((opt = getopt(argc, argv, "sht:r:n:o:")) != -1) {
+    while ((opt = getopt(argc, argv, "shtr:n:o:")) != -1) {
         switch (opt) {
             case 's':
                 do_stack_tests = true;

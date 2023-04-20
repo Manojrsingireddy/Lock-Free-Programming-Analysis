@@ -15,7 +15,7 @@ int lock_based_bst::get(int key){
     pthread_mutex_lock(&lock);
     bst_node * curr = root;
     int val = BAD_VAL;
-    while(curr != NULL){
+    while(curr != nullptr){
         if(curr->key == key){
             val = curr->val;
             break;
@@ -40,7 +40,7 @@ void lock_based_bst::insert(int key, int val){
     }
     bst_node * curr = root;
     bst_node * prev = nullptr;
-    while(curr){
+    while(curr != nullptr){
         prev = curr;
         if(curr->key > key){
             curr = curr->left;
@@ -62,7 +62,7 @@ void lock_based_bst::remove(int key){
     pthread_mutex_lock(&lock);
     bst_node * curr = root;
     bst_node * prev = nullptr;
-    while(curr){
+    while(curr != nullptr){
         if(curr->key == key){
             break;
         }
@@ -134,7 +134,9 @@ void lock_based_bst::remove(int key){
     pthread_mutex_unlock(&lock);
 }
 
-lock_free_bst::lock_free_bst() : root(nullptr) {}
+lock_free_bst::lock_free_bst(){
+    root.store(nullptr);
+}
 
 void delete_subtree(lf_bst_node *node) {
     if (node) {
@@ -164,135 +166,155 @@ int lock_free_bst::get(int key){
     }
     return BAD_VAL;
 }
-
-bool try_remove(Info * info){
-    lf_bst_node *old_node = info->old_node;
-    lf_bst_node *new_node = info->new_node;
-
-    lf_bst_node *left_child = old_node->left.load();
-    lf_bst_node *right_child = old_node->right.load();
-
-    if (left_child && right_child) {
-        lf_bst_node *smallest_right = right_child;
-        atomic<lf_bst_node *> *smallest_right_parent_ptr = &old_node->right;
-
-        while (smallest_right->left.load()) {
-            smallest_right_parent_ptr = &smallest_right->left;
-            smallest_right = smallest_right->left.load();
-        }
-
-        new_node = new lf_bst_node(smallest_right->key, smallest_right->val);
-        new_node->left.store(left_child);
-        new_node->right.store(right_child);
-
-        Info *delete_info = new Info(Info::Type::Delete, smallest_right, nullptr);
-        if (smallest_right->op_info.compare_exchange_strong(nullptr, delete_info)) {
-            help(delete_info);
-            delete delete_info;
-        } else {
-            delete new_node;
-            return false;
-        }
-    } else {
-        new_node = left_child ? left_child : right_child;
-    }
-
-    atomic<lf_bst_node *> *child_ptr = (old_node->key < new_node->key) ? &old_node->right : &old_node->left;
-    return child_ptr->compare_exchange_strong(old_node, new_node);
-}
-
-void help(Info *info) {
-    if (info->type == Info::Type::Insert) {
-        lf_bst_node *old_node = info->old_node;
-        lf_bst_node *new_node = info->new_node;
-        atomic<lf_bst_node *> *child_ptr = (old_node->key < new_node->key) ? &old_node->right : &old_node->left;
-        child_ptr->compare_exchange_strong(old_node, new_node);
-    } else if (info->type == Info::Type::Delete) {
-        lf_bst_node *old_node = info->old_node;
-        lf_bst_node *new_node = info->new_node;
-        try_remove(info);
-    }
-}
-
-
-void lock_free_bst::insert(int key, int val){
+void lock_free_bst::insert(int key, int val) {
     lf_bst_node *new_node = new lf_bst_node(key, val);
-    lf_bst_node *current = root.load();
-    atomic<lf_bst_node *> *parent_ptr = nullptr;
-
+    lf_bst_node *cur = root.load();
+    
     while (true) {
-        if (!current) {
-            if (!parent_ptr->compare_exchange_strong(current, new_node))
-                continue;
-            return;
-        }
-
-        Info *current_info = current->op_info.load();
-        if (current_info) {
-            help(current_info);
-            continue;
-        }
-
-        if (key < current->key) {
-            parent_ptr = &current->left;
-            current = current->left.load();
-        } else if (key > current->key) {
-            parent_ptr = &current->right;
-            current = current->right.load();
-        } else {
-            return; // Key already exists
-        }
-
-        Info *insert_info = new Info(Info::Type::Insert, current, new_node);
-        if (current->op_info.compare_exchange_strong(nullptr, insert_info)) {
-            help(insert_info);
-            delete insert_info;
-            return;
-        } else {
-            delete insert_info;
-        }
-    }
-}
-
-void lock_free_bst::remove(int key){
-    lf_bst_node *current = root.load();
-    atomic<lf_bst_node *> *parent_ptr = nullptr;
-
-    while (current) {
-        Info *current_info = current->op_info.load();
-        if (current_info) {
-            help(current_info);
-            continue;
-        }
-
-        if (key < current->key) {
-            parent_ptr = &current->left;
-            current = current->left.load();
-        } else if (key > current->key) {
-            parent_ptr = &current->right;
-            current = current->right.load();
-        } else {
-            lf_bst_node *replacement = nullptr;
-            if (current->left.load() && current->right.load()) {
-                remove(current->right.load()->key);
-                replacement = current->right.load();
-            } else {
-                replacement = (current->left.load()) ? current->left.load() : current->right.load();
+        if (cur == nullptr) {
+            if (root.compare_exchange_weak(cur, new_node)) {
+                return;
             }
-
-            Info *delete_info = new Info(Info::Type::Delete, current, replacement);
-            if (current->op_info.compare_exchange_strong(nullptr, delete_info)) {
-                if (try_remove(delete_info)) {
-                    help(delete_info);
-                    delete delete_info;
+        } else if (key < cur->key) {
+            lf_bst_node *left = cur->left.load();
+            if (left == nullptr) {
+                if (cur->left.compare_exchange_weak(left, new_node)) {
                     return;
-                } else {
-                    delete delete_info;
                 }
+            } else {
+                cur = left;
             }
+        } else if (key > cur->key) {
+            lf_bst_node *right = cur->right.load();
+            if (right == nullptr) {
+                if (cur->right.compare_exchange_weak(right, new_node)) {
+                    return;
+                }
+            } else {
+                cur = right;
+            }
+        } else {
+            // Overwrite value if the key already exists
+            cur->val = val;
+            delete new_node;
+            return;
         }
     }
-    throw std::runtime_error("Key not found in the tree");
 }
 
 
+struct tArgs_struct {
+    void *Data_structure;
+    double readWriteRatio;
+    int num_ops;
+    tArgs_struct() : Data_structure(nullptr), readWriteRatio(0), num_ops(0) {}
+    tArgs_struct(void *ds, double rWR, int NO) : Data_structure(ds), readWriteRatio(rWR), num_ops(NO) {}
+};
+typedef struct tArgs_struct tArgs;
+
+void * performLockFreeBSTOperations(void * args){
+    tArgs *threadArgs = static_cast<tArgs *>(args);
+    lock_free_bst *bst = (lock_free_bst *) threadArgs->Data_structure;
+    double readWriteRatio = threadArgs->readWriteRatio;
+    int num_ops = threadArgs->num_ops;
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> dis(0, 1);
+    vector<int> keys(num_ops);
+
+    for (int i = 0; i < num_ops; ++i) {
+        double random_value = dis(gen);
+        if (random_value <= readWriteRatio) {            
+            int key = abs(rand()) % keys.size() - 1;
+            bst->get(keys[key]);
+            // bst->get(i);
+        } else {            
+            int key = abs(rand());
+            keys.push_back(key);
+            bst->insert(key, 0);
+            // bst->insert(i, 0);
+        }
+    }
+    return nullptr;
+}
+
+long long performLockFreeBSTTest(double readWriteRatio, int num_threads, int num_ops){
+    std::__1::chrono::steady_clock::time_point start = std::chrono::high_resolution_clock::now();
+    // Create bst
+    lock_free_bst * bst = new lock_free_bst();
+    std::vector<pthread_t> threads(num_threads);
+    std::vector<tArgs> threadArgs(num_threads);
+    for(int i = 0; i < num_threads; ++i){
+        threadArgs[i] = tArgs((void *) bst, readWriteRatio, num_ops);
+    }
+    for (int i = 0; i < num_threads; ++i) {
+        pthread_create(&threads[i], nullptr, performLockFreeBSTOperations, &threadArgs[i]);
+    }
+    for (int i = 0; i < num_threads; ++i) {
+        pthread_join(threads[i], nullptr);
+    }
+    std::__1::chrono::steady_clock::time_point end = std::chrono::high_resolution_clock::now();
+    delete bst;
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+}
+
+
+
+void * performLockBasedBSTOperations(void * args){
+    tArgs *threadArgs = static_cast<tArgs *>(args);
+    lock_based_bst *bst = (lock_based_bst *) threadArgs->Data_structure;
+    double readWriteRatio = threadArgs->readWriteRatio;
+    int num_ops = threadArgs->num_ops;
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> dis(0, 1);
+    vector<int> keys(num_ops);
+
+    for (int i = 0; i < num_ops; ++i) {
+        double random_value = dis(gen);
+        if (random_value <= readWriteRatio) {            
+            int key = abs(rand()) % keys.size() - 1;
+            bst->get(keys[key]);
+            // bst->get(i);
+        } else {            
+            int key = abs(rand());
+            keys.push_back(key);
+            bst->insert(key, 0);
+            // bst->insert(i, 0);
+        }
+    }
+    return nullptr;
+}
+
+long long performLockBasedBSTTest(double readWriteRatio, int num_threads, int num_ops){
+    std::__1::chrono::steady_clock::time_point start = std::chrono::high_resolution_clock::now();
+    // Create the bst
+    lock_based_bst * bst = new lock_based_bst();
+    std::vector<pthread_t> threads(num_threads);
+    std::vector<tArgs> threadArgs(num_threads);
+    for(int i = 0; i < num_threads; ++i){
+        threadArgs[i] = tArgs((void *) bst, readWriteRatio, num_ops);
+    }
+    for (int i = 0; i < num_threads; ++i) {
+        pthread_create(&threads[i], nullptr, performLockBasedBSTOperations, &threadArgs[i]);
+    }
+    for (int i = 0; i < num_threads; ++i) {
+        pthread_join(threads[i], nullptr);
+    }
+    delete bst;
+    std::__1::chrono::steady_clock::time_point end = std::chrono::high_resolution_clock::now();
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+}
+
+
+void performBSTTests(double readWriteRatio, int num_threads, int num_ops){
+    cout << "Performing BST tests..." << endl;
+    long long lb_time = performLockBasedBSTTest(readWriteRatio, num_threads, num_ops);
+    long long lf_time = performLockFreeBSTTest(readWriteRatio, num_threads, num_ops);
+    // Summary statictics
+    std::cout << "Lock based hash table time: " << lb_time << " nanoseconds" << std::endl;
+    std::cout << "Lock free hash table time: " << lf_time << " nanoseconds" << std::endl;
+    std::cout << "Speedup: " << ((double)lb_time / (double)lf_time) << std::endl;
+}

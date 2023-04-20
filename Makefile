@@ -4,7 +4,7 @@ CC_OPTIONS = -c -Wall -pthread ${DEBUG_FLAG}
 RM = /bin/rm -f
 SRC_DIR = src
 BUILD_DIR = build
-SRC = stack.cc hashtable.cc #BST.cc
+SRC = stack.cc hashtable.cc BST.cc
 OBJS = ${SRC:%.cc=${BUILD_DIR}/%.o}
 MAIN = run
 
