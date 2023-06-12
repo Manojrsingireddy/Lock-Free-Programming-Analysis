@@ -26,7 +26,7 @@ python3 test_run.py
 OR
 ```
 python3 test_run.py
-'''
+```
 
 ## Results
 The results of the testing is located in the Results.pdf file.
